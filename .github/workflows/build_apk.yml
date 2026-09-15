@@ -52,11 +52,18 @@ jobs:
           done
           ls mipmap-hdpi/
 
+             - name: Installer Gradle 8.7
+        run: |
+          curl -sL https://services.gradle.org/distributions/gradle-8.7-bin.zip -o gradle.zip
+          unzip -q gradle.zip -d "$HOME"
+          rm gradle.zip
+          echo "$HOME/gradle-8.7/bin" >> $GITHUB_PATH
+
       - name: Compiler l'APK
         run: |
           cd apk
-          gradle wrapper --gradle-version 8.4 --no-daemon
-          ./gradlew assembleDebug --no-daemon --stacktrace
+          gradle --version
+          gradle assembleDebug --no-daemon --stacktrace
 
       - name: Renommer l'APK
         run: |
@@ -68,4 +75,5 @@ jobs:
       - name: Publier l'APK
         uses: actions/upload-artifact@v4
         with:
-          name:
+          name: FASTCUT-apk
+          path: apk/FASTCUT.apk
