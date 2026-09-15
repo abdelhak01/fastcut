@@ -12,8 +12,14 @@ yes | $SDK/cmdline-tools/latest/bin/sdkmanager --licenses >/dev/null 2>&1 || tru
 $SDK/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0" >/dev/null
 
 cd $GITHUB_WORKSPACE
+
+# Android bloque les modules ES6 en file:// : on fusionne les scripts
+python3 fusionner.py
+
 mkdir -p apk/app/src/main/assets
-cp index.html moteur.js dxf.js exports.js manifest.json icone.svg icone-192.png icone-512.png apk/app/src/main/assets/
+cp index-apk.html apk/app/src/main/assets/index.html
+cp icone.svg icone-192.png icone-512.png apk/app/src/main/assets/
+ls -la apk/app/src/main/assets/
 
 cd apk/app/src/main/res
 mkdir -p mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi

@@ -18,6 +18,22 @@ import android.widget.Toast;
 import java.io.File;
 import java.io.FileOutputStream;
 
+/**
+ * FASTCUT — enveloppe Android.
+ *
+ * L'application web est EMBARQUEE dans l'APK (dossier assets) : elle
+ * fonctionne sans aucune connexion, comme une application classique.
+ *
+ * Aucune bibliotheque externe n'est utilisee (ni AndroidX, ni Kotlin) :
+ * uniquement le SDK Android de base. Cela evite les conflits de
+ * dependances et allege fortement l'APK.
+ *
+ * Le seul point qui demande du code natif est l'enregistrement de
+ * fichiers : dans une WebView, un telechargement declenche par
+ * JavaScript ne produit rien. On expose donc une passerelle
+ * `AndroidFichiers` que la page web appelle pour ecrire dans le
+ * dossier Telechargements.
+ */
 public class MainActivity extends Activity {
 
     private WebView vue;
@@ -32,12 +48,17 @@ public class MainActivity extends Activity {
 
         WebSettings reglages = vue.getSettings();
         reglages.setJavaScriptEnabled(true);
-        reglages.setDomStorageEnabled(true);
+        reglages.setDomStorageEnabled(true);      // localStorage : projets, reglages
         reglages.setAllowFileAccess(true);
+        // Sans ces deux reglages, une page chargee en file:// se voit
+        // refuser l'acces au stockage sur certaines versions d'Android :
+        // les projets ne seraient pas conserves d'un lancement a l'autre.
+        reglages.setAllowFileAccessFromFileURLs(true);
+        reglages.setAllowUniversalAccessFromFileURLs(true);
         reglages.setLoadWithOverviewMode(true);
         reglages.setUseWideViewPort(true);
         reglages.setBuiltInZoomControls(false);
-        reglages.setTextZoom(100);
+        reglages.setTextZoom(100);                // la taille se regle dans l'app
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             reglages.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);
@@ -46,7 +67,7 @@ public class MainActivity extends Activity {
         vue.setWebViewClient(new WebViewClient() {
             @Override
             public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest requete) {
-                return false;
+                return false;   // tout reste dans l'application
             }
         });
 
@@ -54,6 +75,7 @@ public class MainActivity extends Activity {
         vue.loadUrl("file:///android_asset/index.html");
     }
 
+    /** Retour arriere : revenir dans l'application plutot que la fermer. */
     @Override
     public void onBackPressed() {
         if (vue != null && vue.canGoBack()) vue.goBack();
@@ -62,6 +84,11 @@ public class MainActivity extends Activity {
 
     private class PasserelleFichiers {
 
+        /**
+         * @param nomFichier     nom du fichier a creer
+         * @param contenuBase64  contenu encode en base64
+         * @param typeMime       type du fichier (pour l'indexation systeme)
+         */
         @JavascriptInterface
         public void enregistrer(String nomFichier, String contenuBase64, String typeMime) {
             try {
@@ -70,7 +97,7 @@ public class MainActivity extends Activity {
                 File dossier = Environment.getExternalStoragePublicDirectory(
                         Environment.DIRECTORY_DOWNLOADS);
                 if (!dossier.exists() && !dossier.mkdirs()) {
-                    signaler("Impossible d'acceder au dossier Telechargements");
+                    signaler("Impossible d'accéder au dossier Téléchargements");
                     return;
                 }
 
@@ -82,6 +109,7 @@ public class MainActivity extends Activity {
                     flux.close();
                 }
 
+                // Rendre le fichier visible dans le gestionnaire de fichiers
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                     try {
                         DownloadManager dm = (DownloadManager)
@@ -91,16 +119,18 @@ public class MainActivity extends Activity {
                                     typeMime, fichier.getAbsolutePath(), fichier.length(), true);
                         }
                     } catch (Exception ignore) {
+                        // Certaines versions refusent : le fichier existe quand meme
                     }
                 }
 
-                signaler(nomFichier + " enregistre dans Telechargements");
+                signaler(nomFichier + " enregistré dans Téléchargements");
 
             } catch (Exception e) {
-                signaler("Echec de l'enregistrement");
+                signaler("Échec de l'enregistrement");
             }
         }
 
+        /** Indique a la page web qu'elle tourne dans l'application Android. */
         @JavascriptInterface
         public boolean disponible() {
             return true;

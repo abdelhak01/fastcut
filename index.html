@@ -208,6 +208,28 @@ import { ouvrirFicheDecoupe, construireCSV, telechargerTexte,
   exporterSauvegarde, lireSauvegarde } from './exports.js';
 
 // =====================================================================
+// Stockage local — acces toujours protege
+//
+// Dans l'APK, la page est chargee depuis file:// ; certaines versions
+// d'Android refusent alors l'acces au stockage et levent une exception.
+// Sans protection, le script s'interrompt avant le premier affichage
+// (ecran noir). En cas de refus, l'application fonctionne normalement,
+// seule la memorisation entre deux lancements est perdue.
+// =====================================================================
+function lireReglage(cle, defaut) {
+  try {
+    const v = localStorage.getItem(cle);
+    return v === null ? defaut : v;
+  } catch {
+    return defaut;
+  }
+}
+
+function ecrireReglage(cle, valeur) {
+  try { localStorage.setItem(cle, valeur); } catch {}
+}
+
+// =====================================================================
 // Etat
 // =====================================================================
 const S = {
@@ -228,8 +250,8 @@ const S = {
   choixForme: 0,
   ongletDessin: 'apercu',
   controle: null,
-  theme: localStorage.getItem('fc_theme') || 'sombre',
-  taille: parseFloat(localStorage.getItem('fc_taille')) || 1,
+  theme: lireReglage('fc_theme', 'sombre'),
+  taille: parseFloat(lireReglage('fc_taille', '1')) || 1,
 };
 
 const stockage = {
@@ -1031,13 +1053,13 @@ function brancher() {
     const taille = t.closest('[data-taille]');
     if (taille) {
       S.taille = +taille.dataset.taille;
-      localStorage.setItem('fc_taille', S.taille);
+      ecrireReglage('fc_taille', S.taille);
       return rendre();
     }
 
     if (t.closest('#b-theme')) {
       S.theme = S.theme === 'sombre' ? 'clair' : 'sombre';
-      localStorage.setItem('fc_theme', S.theme);
+      ecrireReglage('fc_theme', S.theme);
       return rendre();
     }
     if (t.closest('#b-controle')) {
