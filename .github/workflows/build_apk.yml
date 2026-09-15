@@ -20,7 +20,19 @@ jobs:
           java-version: '17'
 
       - name: Installer le SDK Android
-        uses: android-actions/setup-android@v3
+        run: |
+          mkdir -p "$HOME/android-sdk/cmdline-tools"
+          cd "$HOME/android-sdk/cmdline-tools"
+          curl -sL https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -o outils.zip
+          unzip -q outils.zip
+          mv cmdline-tools latest
+          rm outils.zip
+          SDK="$HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDK" --sdk_root="$HOME/android-sdk" --licenses > /dev/null 2>&1 || true
+          "$SDK" --sdk_root="$HOME/android-sdk" \
+            "platform-tools" "platforms;android-34" "build-tools;34.0.0" > /dev/null
+          echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
 
       - name: Copier l'application web dans l'APK
         run: |
@@ -31,41 +43,29 @@ jobs:
           echo "Fichiers embarqués :"
           ls -la apk/app/src/main/assets/
 
-      - name: Préparer les icônes de l'application
+      - name: Préparer les icônes
         run: |
           cd apk/app/src/main/res
           for d in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
-            mkdir -p $d
-            cp ../../../../../icone-192.png $d/ic_launcher.png
+            mkdir -p "$d"
+            cp "$GITHUB_WORKSPACE/icone-192.png" "$d/ic_launcher.png"
           done
-          rm -rf mipmap-hdpi/.gitkeep 2>/dev/null || true
           ls mipmap-hdpi/
-
-      - name: Générer la clé de signature
-        run: |
-          cd apk
-          keytool -genkeypair -v -keystore fastcut.keystore \
-            -alias fastcut -keyalg RSA -keysize 2048 -validity 10000 \
-            -storepass fastcut2026 -keypass fastcut2026 \
-            -dname "CN=Abdelhak AITADDI, O=FASTCUT, L=Casablanca, C=MA"
 
       - name: Compiler l'APK
         run: |
           cd apk
-          chmod +x gradlew 2>/dev/null || true
           gradle wrapper --gradle-version 8.4 --no-daemon
           ./gradlew assembleDebug --no-daemon --stacktrace
 
       - name: Renommer l'APK
         run: |
           cd apk
-          find . -name "*.apk" -print
+          find . -name "*.apk"
           cp app/build/outputs/apk/debug/app-debug.apk FASTCUT.apk
+          ls -la FASTCUT.apk
 
       - name: Publier l'APK
         uses: actions/upload-artifact@v4
         with:
-          name: FASTCUT-apk
-          path: |
-            apk/FASTCUT.apk
-            apk/fastcut.keystore
+          name:
