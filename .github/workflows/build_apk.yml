@@ -9,6 +9,10 @@ jobs:
   build:
     runs-on: ubuntu-22.04
 
+    env:
+      ANDROID_HOME: /home/runner/android-sdk
+      ANDROID_SDK_ROOT: /home/runner/android-sdk
+
     steps:
       - name: Récupérer le code
         uses: actions/checkout@v4
@@ -21,19 +25,30 @@ jobs:
 
       - name: Installer le SDK Android
         run: |
-          mkdir -p "$HOME/android-sdk/cmdline-tools"
-          cd "$HOME/android-sdk/cmdline-tools"
+          mkdir -p /home/runner/android-sdk/cmdline-tools
+          cd /home/runner/android-sdk/cmdline-tools
           curl -sL https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -o outils.zip
           unzip -q outils.zip
           mv cmdline-tools latest
           rm outils.zip
-          SDK="$HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager"
-          yes | "$SDK" --sdk_root="$HOME/android-sdk" --licenses > /dev/null 2>&1 || true
-          "$SDK" --sdk_root="$HOME/android-sdk" \
-            "platform-tools" "platforms;android-34" "build-tools;34.0.0" > /dev/null
-          echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
-          echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
+          yes | /home/runner/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null 2>&1 || true
+          /home/runner/android-sdk/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0" > /dev/null
 
       - name: Copier l'application web dans l'APK
         run: |
-          mkdir -p
+          mkdir -p apk/app/src/main/assets
+          cp index.html moteur.js dxf.js exports.js manifest.json icone.svg icone-192.png icone-512.png apk/app/src/main/assets/
+          ls -la apk/app/src/main/assets/
+
+      - name: Préparer les icônes
+        run: |
+          mkdir -p apk/app/src/main/res/mipmap-mdpi
+          mkdir -p apk/app/src/main/res/mipmap-hdpi
+          mkdir -p apk/app/src/main/res/mipmap-xhdpi
+          mkdir -p apk/app/src/main/res/mipmap-xxhdpi
+          mkdir -p apk/app/src/main/res/mipmap-xxxhdpi
+          cp icone-192.png apk/app/src/main/res/mipmap-mdpi/ic_launcher.png
+          cp icone-192.png apk/app/src/main/res/mipmap-hdpi/ic_launcher.png
+          cp icone-192.png apk/app/src/main/res/mipmap-xhdpi/ic_launcher.png
+          cp icone-192.png apk/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
+          cp
