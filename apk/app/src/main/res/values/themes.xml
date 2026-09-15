@@ -1,8 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.Fastcut" parent="Theme.AppCompat.NoActionBar">
-        <item name="android:statusBarColor">#13263d</item>
-        <item name="android:navigationBarColor">#0d1826</item>
+    <style name="Theme.Fastcut" parent="@android:style/Theme.NoTitleBar">
         <item name="android:windowBackground">#0d1826</item>
     </style>
 </resources>
