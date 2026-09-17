@@ -85,7 +85,7 @@ export function ouvrirFicheDecoupe(projet, panneaux, dessinerPanneau) {
 ${lignes}
 <footer>
   <span class="avert">Vérifier les cotes avant découpe.</span>
-  <span style="margin-left:auto"><b>Abdelhak AITADDI</b> &nbsp;·&nbsp; <b>+212 666 951 305</b></span>
+  <span style="margin-left:auto">${echapper(projet) || ''}</span>
 </footer>
 <div class="noprint" style="position:fixed;bottom:16px;right:16px">
   <button onclick="window.print()" style="padding:11px 18px;border:none;border-radius:8px;

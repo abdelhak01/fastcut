@@ -243,7 +243,6 @@ const S = {
   reference: '',
   epaisseur: '',
   note: '',
-  photo: null,
   modifieIndex: null,
   commande: [],
   resultat: { etat: 'incomplet', formes: [] },
@@ -597,15 +596,7 @@ function colonneSaisie() {
         <input class="champ" id="i-note" value="${echapper(S.note)}" placeholder="fixations…">
       </div>
     </div>
-    <label class="bouton b-neutre" style="padding:9px;font-size:12px;cursor:pointer;margin-top:0">
-      ${S.photo ? 'Photo jointe — remplacer' : 'Joindre une photo du gabarit'}
-      <input type="file" accept="image/*" id="i-photo" style="display:none">
-    </label>
-    ${S.photo ? `<div style="margin-top:6px;position:relative">
-      <img src="${S.photo}" style="width:100%;border-radius:6px;display:block">
-      <button id="b-photo-suppr" style="position:absolute;top:5px;right:5px;
-        background:rgba(0,0,0,.6);color:#fff;border-radius:5px;padding:3px 8px;font-size:11px"
-        >Retirer</button></div>` : ''}
+
 
     <p class="titre-section cote" style="margin-top:12px">Côtés (mm)</p>`;
 
@@ -767,22 +758,6 @@ function modale(titre, texte, actions) {
 // =====================================================================
 // Utilitaires
 // =====================================================================
-/** Reduit une photo avant stockage : sinon le navigateur sature vite. */
-function reduireImage(dataUrl, maxCote = 900) {
-  const img = new Image();
-  img.onload = () => {
-    const r = Math.min(1, maxCote / Math.max(img.width, img.height));
-    const c = document.createElement('canvas');
-    c.width = Math.round(img.width * r);
-    c.height = Math.round(img.height * r);
-    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-    S.photo = c.toDataURL('image/jpeg', 0.72);
-    rendre();
-  };
-  img.src = dataUrl;
-  return dataUrl;
-}
-
 /** Affiche une proposition de forme en grand, pour choisir sans se tromper. */
 function modaleForme(forme, index) {
   const voile = document.createElement('div');
@@ -832,7 +807,7 @@ function ajouterPanneau() {
     arrondis: S.arrondis.map((a) => ({ ...a })),
     marge: { ...S.marge }, rectiligne: { ...S.rectiligne },
     choixForme: S.choixForme, w, h,
-    epaisseur: S.epaisseur, note: S.note, photo: S.photo,
+    epaisseur: S.epaisseur, note: S.note,
     erreur: S.resultat.formes[S.choixForme]?.erreur ?? 0,
   };
 
@@ -849,7 +824,7 @@ function ajouterPanneau() {
 }
 
 function viderSaisie() {
-  S.reference = ''; S.note = ''; S.photo = null; S.controle = null;
+  S.reference = ''; S.note = ''; S.controle = null;
 }
 
 function modifierPanneau(i) {
@@ -864,7 +839,6 @@ function modifierPanneau(i) {
   S.reference = p.ref;
   S.epaisseur = p.epaisseur || '';
   S.note = p.note || '';
-  S.photo = p.photo || null;
   S.page = 'accueil';
   rendre();
 }
@@ -1026,7 +1000,6 @@ function brancher() {
     if (t.closest('#b-annuler-modif')) {
       S.modifieIndex = null; viderSaisie(); return rendre();
     }
-    if (t.closest('#b-photo-suppr')) { S.photo = null; return rendre(); }
     if (t.closest('#b-retourner')) {
       const f = S.resultat.formes[S.choixForme];
       if (f) { f.points = retournerForme(f.points); S.pointsBruts = f.points; }
@@ -1108,12 +1081,6 @@ function brancher() {
       const lect = new FileReader();
       lect.onload = () => restaurerProjets(lect.result);
       lect.readAsText(t.files[0]);
-      return;
-    }
-    if (t.id === 'i-photo' && t.files?.[0]) {
-      const lecteur = new FileReader();
-      lecteur.onload = () => { S.photo = reduireImage(lecteur.result); };
-      lecteur.readAsDataURL(t.files[0]);
       return;
     }
     if (t.id === 'o-marge') { S.marge.actif = t.checked; return majDessin(); }
