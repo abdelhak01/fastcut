@@ -4,11 +4,15 @@ import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.DownloadManager;
 import android.content.Context;
+import android.content.Intent;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.util.Base64;
 import android.webkit.JavascriptInterface;
+import android.webkit.ValueCallback;
+import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
@@ -22,21 +26,23 @@ import java.io.FileOutputStream;
  * FASTCUT — enveloppe Android.
  *
  * L'application web est EMBARQUEE dans l'APK (dossier assets) : elle
- * fonctionne sans aucune connexion, comme une application classique.
+ * fonctionne sans aucune connexion.
  *
- * Aucune bibliotheque externe n'est utilisee (ni AndroidX, ni Kotlin) :
- * uniquement le SDK Android de base. Cela evite les conflits de
- * dependances et allege fortement l'APK.
+ * Deux points demandent du code natif :
  *
- * Le seul point qui demande du code natif est l'enregistrement de
- * fichiers : dans une WebView, un telechargement declenche par
- * JavaScript ne produit rien. On expose donc une passerelle
- * `AndroidFichiers` que la page web appelle pour ecrire dans le
- * dossier Telechargements.
+ * 1. ENREGISTRER UN FICHIER. Dans une WebView, un telechargement
+ *    declenche par JavaScript ne produit rien. La passerelle
+ *    `AndroidFichiers` ecrit dans le dossier Telechargements.
+ *
+ * 2. CHOISIR UNE IMAGE. Un champ <input type="file"> reste sans effet
+ *    tant qu'un WebChromeClient n'ouvre pas le selecteur du systeme :
+ *    c'est le role de onShowFileChooser ci-dessous.
  */
 public class MainActivity extends Activity {
 
     private WebView vue;
+    private ValueCallback<Uri[]> retourSelection;
+    private static final int CODE_SELECTION = 1001;
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
@@ -71,8 +77,62 @@ public class MainActivity extends Activity {
             }
         });
 
+        // Ouvre le selecteur du systeme quand la page demande un fichier
+        vue.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public boolean onShowFileChooser(WebView v,
+                                             ValueCallback<Uri[]> callback,
+                                             FileChooserParams parametres) {
+                if (retourSelection != null) {
+                    retourSelection.onReceiveValue(null);
+                }
+                retourSelection = callback;
+
+                Intent intention;
+                try {
+                    intention = parametres.createIntent();
+                } catch (Exception e) {
+                    intention = new Intent(Intent.ACTION_GET_CONTENT);
+                    intention.addCategory(Intent.CATEGORY_OPENABLE);
+                    intention.setType("image/*");
+                }
+
+                try {
+                    startActivityForResult(
+                            Intent.createChooser(intention, "Choisir une photo"),
+                            CODE_SELECTION);
+                } catch (Exception e) {
+                    retourSelection = null;
+                    signaler("Aucune application de fichiers disponible");
+                    return false;
+                }
+                return true;
+            }
+        });
+
         vue.addJavascriptInterface(new PasserelleFichiers(), "AndroidFichiers");
         vue.loadUrl("file:///android_asset/index.html");
+    }
+
+    @Override
+    protected void onActivityResult(int code, int resultat, Intent donnees) {
+        if (code != CODE_SELECTION) {
+            super.onActivityResult(code, resultat, donnees);
+            return;
+        }
+        if (retourSelection == null) return;
+
+        Uri[] fichiers = null;
+        if (resultat == RESULT_OK && donnees != null) {
+            try {
+                fichiers = WebChromeClient.FileChooserParams.parseResult(resultat, donnees);
+            } catch (Exception e) {
+                Uri unique = donnees.getData();
+                if (unique != null) fichiers = new Uri[]{ unique };
+            }
+        }
+        retourSelection.onReceiveValue(fichiers);
+        retourSelection = null;
     }
 
     /** Retour arriere : revenir dans l'application plutot que la fermer. */
@@ -97,7 +157,7 @@ public class MainActivity extends Activity {
                 File dossier = Environment.getExternalStoragePublicDirectory(
                         Environment.DIRECTORY_DOWNLOADS);
                 if (!dossier.exists() && !dossier.mkdirs()) {
-                    signaler("Impossible d'accéder au dossier Téléchargements");
+                    signaler("Impossible d'acceder au dossier Telechargements");
                     return;
                 }
 
@@ -109,7 +169,6 @@ public class MainActivity extends Activity {
                     flux.close();
                 }
 
-                // Rendre le fichier visible dans le gestionnaire de fichiers
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                     try {
                         DownloadManager dm = (DownloadManager)
@@ -123,10 +182,10 @@ public class MainActivity extends Activity {
                     }
                 }
 
-                signaler(nomFichier + " enregistré dans Téléchargements");
+                signaler(nomFichier + " enregistre dans Telechargements");
 
             } catch (Exception e) {
-                signaler("Échec de l'enregistrement");
+                signaler("Echec de l'enregistrement");
             }
         }
 
